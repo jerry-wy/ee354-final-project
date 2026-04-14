@@ -1,56 +1,54 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: EE354
+// Engineer: Arda Caliskan
+// 
+// Create Date:    12:18:00 12/14/2017 
+// Design Name: 
+// Module Name:    vga_top 
+//
+// Date: 11/11/2024
+// Author: Arda Caliskan
+// Description: Port from NEXYS4 to A7
+//////////////////////////////////////////////////////////////////////////////////
 module flappy_top(
-    input  wire clk,     // 100 MHz
-    input  wire rst,
-    output wire hsync,
-    output wire vsync,
-    output wire [3:0] vga_r,
-    output wire [3:0] vga_g,
-    output wire [3:0] vga_b
+	input  ClkPort,
+	input  BtnC,
+	input  BtnU,
+
+	// VGA
+	output hSync, vSync,
+	output [3:0] vgaR, vgaG, vgaB,
+
+	//SSG signal
+	output An0, An1, An2, An3, An4, An5, An6, An7,
+	output Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp,
+
+	output QuadSpiFlashCS
 );
 
-    wire pixel_clk;
-    wire video_on;
-    wire [9:0] x, y;
-    wire [11:0] rgb;
+	wire bright;
+	wire [9:0] hc, vc;
+	wire [9:0] bird_y;
+	wire [15:0] score;
+	wire [15:0] best_score;
+	wire [6:0] ssdOut;
+	wire [7:0] anode;
+	wire [11:0] rgb;
 
-    // -------------------------
-    // Clock divider (100MHz → 25MHz)
-    // -------------------------
-    reg [1:0] clk_div = 0;
-    always @(posedge clk) begin
-        clk_div <= clk_div + 1;
-    end
+	display_controller dc(.clk(ClkPort), .hSync(hSync), .vSync(vSync), .bright(bright), .hCount(hc), .vCount(vc));
+	game_engine ge(.clk(ClkPort), .button(BtnU), .bird_y(bird_y), .best_score(best_score));
+	vga_bitchange vbc(.clk(ClkPort), .bright(bright), .button(BtnU), .hCount(hc), .vCount(vc), .bird_y(bird_y), .rgb(rgb), .score(score));
+	counter cnt(.clk(ClkPort), .score(score), .best_score(best_score), .anode(anode), .ssdOut(ssdOut));
 
-    assign pixel_clk = clk_div[1];
+	assign vgaR = rgb[11:8];
+	assign vgaG = rgb[7:4];
+	assign vgaB = rgb[3:0];
 
-    // -------------------------
-    // VGA controller
-    // -------------------------
-    vga_controller vga_inst (
-        .clk(pixel_clk),
-        .rst(rst),
-        .hsync(hsync),
-        .vsync(vsync),
-        .video_on(video_on),
-        .x(x),
-        .y(y)
-    );
+	assign {Ca, Cb, Cc, Cd, Ce, Cf, Cg} = ssdOut[6:0];
+	assign Dp = 1'b1;
+	assign {An7, An6, An5, An4, An3, An2, An1, An0} = anode;
 
-    // -------------------------
-    // Renderer
-    // -------------------------
-    renderer renderer_inst (
-        .video_on(video_on),
-        .x(x),
-        .y(y),
-        .rgb(rgb)
-    );
-
-    // -------------------------
-    // Output to VGA
-    // -------------------------
-    assign vga_r = rgb[11:8];
-    assign vga_g = rgb[7:4];
-    assign vga_b = rgb[3:0];
+	assign QuadSpiFlashCS = 1'b1;
 
 endmodule
