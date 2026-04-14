@@ -80,9 +80,9 @@ module vga_bitchange(
 	end
 	
 	// ---- bird ROM -------------------------------------------------------
-	parameter BIRD_W = 34;
-    parameter BIRD_H = 24;
-    parameter BIRD_X = 447;
+	parameter BIRD_W = 43;
+    parameter BIRD_H = 30;
+    parameter BIRD_X = 443;
     
     wire bird_in_x = (hCount >= BIRD_X) && (hCount < BIRD_X + BIRD_W);
     wire bird_in_y = (vCount >= bird_y) && (vCount < bird_y + BIRD_H);
