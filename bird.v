@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-module bird_physics (Reset, Clk, div_clk, flap, pause, Ypos, velocity, Qini, Qflap, Qrise, Qfall);
-=======
 module bird_physics (Reset, Clk, div_clk, flap, pause, Ypos, velocity, Qini, Qflap, Qrise, Qfall);
 >>>>>>> fcbeb0d (push test)
 
