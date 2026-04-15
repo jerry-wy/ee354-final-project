@@ -102,4 +102,4 @@ def generate(filename, resize=None):
 # generate("figures/bird.png", resize=(43, 30))
 # generate("figures/background.png", resize=(160, 120))
 # generate("figures/moving_bar.png", resize=(256, 30))
-generate("figures/pipe.png", resize=(52, 24))
+generate("figures/pipe.png", resize=(78, 36))
