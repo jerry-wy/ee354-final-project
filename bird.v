@@ -1,4 +1,4 @@
-module bird_physics_imp1 (Reset, Clk, div_clk, flap, pause, Ypos, velocity, Qini, Qflap, Qrise, Qfall);
+module bird_physics (Reset, Clk, div_clk, flap, pause, Ypos, velocity, Qini, Qflap, Qrise, Qfall);
 
 input Reset, Clk;
 input div_clk, flap, pause;
