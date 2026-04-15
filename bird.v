@@ -1,9 +1,10 @@
 module bird_physics (Reset, Clk, div_clk, flap, pause, Ypos, velocity, Qini, Qflap, Qrise, Qfall);
+>>>>>>> fcbeb0d (push test)
 
 input Reset, Clk;
 input div_clk, flap, pause;
 output Qini, Qflap, Qrise, Qfall;
-output reg [11:0] Ypos, velocity;
+output reg [9:0] Ypos, velocity;
 
 reg [3:0] state;
 
