@@ -25,14 +25,14 @@ def rom_12_bit_rgba(name, im, get_color):
     x_max, y_max = im.size
 
     stem     = os.path.splitext(os.path.basename(name))[0]
-    out_file = os.path.join(os.path.dirname(name), stem + "_rom.v")
+    out_file = os.path.join(os.path.dirname(name), stem + "_12_bit_rom.v")
 
     row_width = max(1, math.ceil(math.log2(y_max)))
     col_width = max(1, math.ceil(math.log2(x_max)))
     addr_width = row_width + col_width
 
     with open(out_file, 'w') as f:
-        f.write(f"module {stem}_12_bit_rom\n(\n")
+        f.write(f"module {stem}_rom\n(\n")
         f.write(f"    input  wire clk,\n")
         f.write(f"    input  wire [{row_width-1}:0] row,\n")
         f.write(f"    input  wire [{col_width-1}:0] col,\n")
@@ -99,6 +99,7 @@ def generate(filename, resize=None):
 # generate("figures/pipe.png", resize=(52, 20))
 
 # Pipe cap texture: resize to 52x20 (matches PIPE_W=52)
-generate("figures/bird.png", resize=(43, 30))
+# generate("figures/bird.png", resize=(43, 30))
 # generate("figures/background.png", resize=(160, 120))
 # generate("figures/moving_bar.png", resize=(256, 30))
+generate("figures/pipe.png", resize=(52, 24))

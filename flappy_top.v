@@ -35,11 +35,13 @@ module flappy_top(
 	wire [6:0] ssdOut;
 	wire [7:0] anode;
 	wire [11:0] rgb;
+    wire [9:0] pipe_x; 
+    wire [7:0] scroll_x;
 
 	display_controller dc(.clk(ClkPort), .hSync(hSync), .vSync(vSync), .bright(bright), .hCount(hc), .vCount(vc));
-	game_engine ge(.clk(ClkPort), .button(BtnU), .bird_y(bird_y), .best_score(best_score));
-	vga_bitchange vbc(.clk(ClkPort), .bright(bright), .button(BtnU), .hCount(hc), .vCount(vc), .bird_y(bird_y), .rgb(rgb), .score(score));
-	counter cnt(.clk(ClkPort), .score(score), .best_score(best_score), .anode(anode), .ssdOut(ssdOut));
+    game_engine ge(.clk(ClkPort), .button(BtnU), .bird_y(bird_y), .pipe_x(pipe_x), .pipe_gap_y(), .scroll_x(scroll_x), .best_score(best_score), .hCount(hc), .vCount(vc));
+    vga_bitchange vbc(.clk(ClkPort), .bright(bright), .button(BtnU), .hCount(hc), .vCount(vc), .bird_y(bird_y), .pipe_x(pipe_x), .scroll_x(scroll_x), .rgb(rgb), .score(score));
+    counter cnt(.clk(ClkPort), .score(score), .best_score(best_score), .anode(anode), .ssdOut(ssdOut));
 
 	assign vgaR = rgb[11:8];
 	assign vgaG = rgb[7:4];

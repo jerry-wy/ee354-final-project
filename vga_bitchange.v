@@ -27,6 +27,7 @@ module vga_bitchange(
 	input button,
 	input [9:0] hCount, vCount,
     input [9:0] bird_y,
+    input [7:0] scroll_x;
 	output reg [11:0] rgb,
 	output reg [15:0] score
    );
@@ -54,15 +55,6 @@ module vga_bitchange(
 	// 256x30 ground strip at the bottom 30 rows of the active area.
 	// Scrolls left by incrementing scroll_x every ~10ms (≈95 px/s at 100MHz).
 	localparam BAR_TOP = 10'd450;  // vActive row where bar starts (480-30=450)
-
-	reg [19:0] scroll_speed;
-	reg  [7:0] scroll_x;
-
-	always @(posedge clk) begin
-		scroll_speed <= scroll_speed + 1;
-		if (scroll_speed == 20'd0)
-			scroll_x <= scroll_x + 1;
-	end
 
 	wire bar_in_y = (vActive >= BAR_TOP);
 	wire [7:0] bar_col = hActive[7:0] + scroll_x;  // lower 8 bits = mod 256
