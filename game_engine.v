@@ -1,62 +1,70 @@
 module game_engine(
-    input Clk,
-    input Reset,
+    input clk,
+    input reset,
+    input flap, // user pressing the fap button --> SEND TO BP FOR BIRD JUMP
+    input pause, // whether or not the game is paused
+    input frame_tick,
 
     output [9:0] bird_y,
-    output reg [9:0] pipe_x,
-    output reg [9:0] pipe_gap_y,
-    output reg [7:0] scroll_x,
-    output reg [15:0] best_score,
-
-    input [9:0] hCount,
-    input [9:0] vCount
+    output reg [9:0] pipe_x, // horizontal position of the pipe
+    output [9:0] pipe_gap_y,// location of the pipe gap (center)
+    output reg [7:0] scroll_x, //
+    output reg [15:0] score,
+    output reg [15:0] best_score
 );
 
-parameter SPEED = 2; // 2 x 100, roughly 200 pixels per second
+  wire [9:0] bird_velocity;
+  wire Qini, Qflap, Qrise, Qfall;
 
-initial begin
-    bird_y     = 10'd263;
-    pipe_x     = 640;
-    scroll_x   = 0;
-    best_score = 0;
-end
+  reg pipe_respawn;// flag to signal new incoming pipe
 
-wire frame_tick = (hCount == 0 && vCount == 0);
-always @(posedge clk) begin
-    if (frame_tick) begin
+  localparam
+    PX_INIT = 10'd639, // initial pipe x position, far right of screen
+    P_SPEED = 10'd4,  // pipe speed # of pixels per frame
+    P_WIDTH = 10'd78,  // pipe width
+    SCROLL_INIT = 8'd0,
+    SCROLL_SPEED = 8'd4, // scroll speed # of pixels per frame
+    SCROLL_WRAP = 8'd255; // wrap around for scrolling
 
-        if (pipe_x <= SPEED)
-            pipe_x <= 640;
-        else
-            pipe_x <= pipe_x - SPEED;
+    bird_physics bp(.Reset(reset), .Clk(clk), .div_clk(frame_tick), .flap(flap), .pause(pause), .Ypos(bird_y), .velocity(bird_velocity), .Qini(Qini), .Qflap(Qflap),.Qrise(Qrise), .Qfall(Qfall));
+    pipe p(.Clk(clk), .Reset(reset), .div_clk(pipe_respawn), .pause(pause), .GapY(pipe_gap_y));
 
-        // ground scroll
-        scroll_x <= scroll_x + SPEED;
-    end
-end
-
-bird_physics bp(.Reset(Reset), .Clk(Clk), .div_clk(frame_tick), .flap(flap), .pause(1'b0), .Ypos(bird_y),
-                .velocity(bird_velocity), .Qini(Qini), .Qflap(Qflap), .Qrise(Qrise), .Qfall(Qfall));
-
-always @(posedge Clk or posedge Reset)
-begin
-    if (Reset)
-      begin
-        pipe_x <= 640;
-        pipe_gap_y <= 200;
-        scroll_x <= 8'd0;
-        score <= 16'd0;
-        best_score <= 16'd0;
-      end
-
-    else if (frame_tick)
+  always @(posedge clk or posedge reset) begin
+    if (reset)
     begin
-        if (pipe_x <= SPEED)
-            pipe_x <= 640;
-        else
-            pipe_x <= pipe_x - SPEED;
-        scroll_x <= scroll_x + SPEED[7:0];
+        pipe_x <= PX_INIT;
+        scroll_x <= SCROLL_INIT;
+        score <= 0;
+        best_score <= 0;
+        pipe_respawn <= 0;
     end
-end
+
+    else
+    begin
+        pipe_respawn <= 0;
+        if (frame_tick && !pause)
+        begin
+            if (pipe_x > P_SPEED)
+                pipe_x <= pipe_x - P_SPEED;
+
+            else
+            begin
+                pipe_x <= PX_INIT;
+                pipe_respawn <= 1;
+                score <= score + 1;
+
+                if (score + 1 > best_score)
+                    best_score <= score + 1;
+            end
+
+            if (scroll_x < SCROLL_WRAP)
+                scroll_x <= scroll_x + SCROLL_SPEED;
+            else
+                scroll_x <= 0;
+
+        end
+
+    end
+  end
 
 endmodule

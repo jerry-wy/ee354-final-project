@@ -35,13 +35,41 @@ module flappy_top(
 	wire [6:0] ssdOut;
 	wire [7:0] anode;
 	wire [11:0] rgb;
-    wire [9:0] pipe_x;
-    wire [7:0] scroll_x;
+	wire [9:0] pipe_x;
+	wire [9:0] pipe_gap_y;
+	wire [7:0] scroll_x;
 
-    game_engine ge(.clk(ClkPort), .button(BtnU), .bird_y(bird_y), .pipe_x(pipe_x), .pipe_gap_y(), .scroll_x(scroll_x), .best_score(best_score), .hCount(hc), .vCount(vc));
-    vga_bitchange vbc(.clk(ClkPort), .bright(bright), .button(BtnU), .hCount(hc), .vCount(vc), .bird_y(bird_y), .pipe_x(pipe_x), .scroll_x(scroll_x), .rgb(rgb), .score(score));
+	wire btnU_dpb;
+	wire flap;
+	wire frame_tick;
+
+	// Calculate frame tick threshold for frame_tick pulse
+	// Using clock = 100MHz
+	// 100MHz / 60 for 60fps
+	// = 1 666 666.6667 ~~ 1 666 666
+	// log_2(1 666 666 + 1) = 20.668 ~~ 21 bits required
+
+	reg[20:0] tick_count;
+	assign frame_tick = (tick_count == TICK_MAX);
+	localparam TICK_MAX = 20'd1666666;
+
+	always @(posedge ClkPort or posedge BtnC)
+	begin
+		if (BtnC) // reset condition
+			tick_count <= 0;
+		else if (tick_count == TICK_MAX) // threshold for pulse
+			tick_count <= 0;
+		else // increment
+			tick_count <= tick_count + 1;
+	end
+
+
+	display_controller dc(.clk(ClkPort), .hSync(hSync),.vSync(vSync), .bright(bright), .hCount(hc), .vCount(vc));
+    ee354_debouncer debouncer( .CLK(ClkPort), .RESET(BtnC), .PB(BtnU), .DPB(btnU_dpb), .SCEN(flap), .MCEN(), .CCEN());
+    game_engine ge(.clk(ClkPort), .reset(BtnC), .flap(flap), .pause(1'b0), .frame_tick(frame_tick), .bird_y(bird_y), .pipe_x(pipe_x), .pipe_gap_y(pipe_gap_y), .scroll_x(scroll_x), .score(score), .best_score(best_score));
+    vga_bitchange vbc(.clk(ClkPort), .bright(bright), .hCount(hc), .vCount(vc), .bird_y(bird_y), .scroll_x(scroll_x), .pipe_x(pipe_x), .pipe_gap_y(pipe_gap_y), .rgb(rgb));
     counter cnt(.clk(ClkPort), .score(score), .best_score(best_score), .anode(anode), .ssdOut(ssdOut));
-    ee354_debouncer debouncer(.clk(ClkPort), .RESET(BtnC), .PB(BtnU), .DPB(btnU_dpb), .SCEN(flap), .MCEN(), .CCEN());
+
 	assign vgaR = rgb[11:8];
 	assign vgaG = rgb[7:4];
 	assign vgaB = rgb[3:0];
