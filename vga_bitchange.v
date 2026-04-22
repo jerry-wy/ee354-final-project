@@ -100,6 +100,7 @@ module vga_bitchange(
 	localparam PIPE_W       = 78;
 	localparam PIPE_ROW_OFF = 4;
 	localparam PIPE_CAP_H   = 28;
+	localparam PIPE_BODY_H  = 16;   // power of 2
 	localparam HALF_GAP_H   = 80;
 
 	// geometry
@@ -119,26 +120,43 @@ module vga_bitchange(
 	wire pipe_active = top_cap || top_body || bot_cap || bot_body;
 
 	// address
-	wire [6:0] pipe_col = pipe_active ? (hActive - pipe_left) : 7'd0;
+	wire [6:0] pipe_col_raw = hActive - pipe_left;
+
+	wire [5:0] pipe_row_cap_top = PIPE_ROW_OFF + (vActive - (pipe_gap_y - HALF_GAP_H - PIPE_CAP_H));
+	wire [5:0] pipe_row_cap_bot = PIPE_ROW_OFF + (PIPE_CAP_H - 1 - (vActive - (pipe_gap_y + HALF_GAP_H)));
 
 	wire [9:0] top_body_dist = pipe_gap_y - HALF_GAP_H - PIPE_CAP_H - 1 - vActive;
 	wire [9:0] bot_body_dist = vActive - (pipe_gap_y + HALF_GAP_H + PIPE_CAP_H);
 
-	wire [5:0] pipe_row =
-		top_cap  ? (PIPE_ROW_OFF + (vActive - (pipe_gap_y - HALF_GAP_H - PIPE_CAP_H))) :
-		bot_cap  ? (PIPE_ROW_OFF + (PIPE_CAP_H - 1 - (vActive - (pipe_gap_y + HALF_GAP_H)))) :
-		top_body ? (PIPE_ROW_OFF + top_body_dist[3:0]) :
-		           (PIPE_ROW_OFF + bot_body_dist[3:0]);
+	wire [5:0] pipe_row_top_body = PIPE_ROW_OFF + top_body_dist[3:0];
+	wire [5:0] pipe_row_bot_body = PIPE_ROW_OFF + bot_body_dist[3:0];
+
+	wire [5:0] pipe_row_raw =
+		top_cap  ? pipe_row_cap_top  :
+		bot_cap  ? pipe_row_cap_bot  :
+		top_body ? pipe_row_top_body :
+				pipe_row_bot_body;
+
+	// pipeline
+	reg pipe_active_d;
+	reg [6:0] pipe_col_d;
+	reg [5:0] pipe_row_d;
+
+	always @(posedge clk) begin
+		pipe_active_d <= pipe_active;
+		pipe_col_d    <= pipe_col_raw;
+		pipe_row_d    <= pipe_row_raw;
+	end
 
 	wire [11:0] pipe_color;
 
-	pipe_rom u_pipe(.clk(clk), .col(pipe_col), .row(pipe_row), .color_data(pipe_color));
+	pipe_rom u_pipe(.clk(clk),.col(pipe_col_d), .row(pipe_row_d),.color_data(pipe_color));
 
 	reg pipe_on_d;
 	reg [11:0] pipe_color_d;
 
 	always @(posedge clk) begin
-		pipe_on_d    <= pipe_active;
+		pipe_on_d    <= pipe_active_d;
 		pipe_color_d <= pipe_color;
 	end
 
