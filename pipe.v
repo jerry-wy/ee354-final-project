@@ -5,16 +5,18 @@ module pipe (Clk, Reset, div_clk, pause, GapY);
 
   integer i;
 
+  // gap center values — valid range 108 to 371
+  // (center ± 80 ± 28 must fit within active area 0-479)
   localparam
-    GAP_INIT = 12'd210,
-    GAP_0    = 12'd90,
-    GAP_1    = 12'd130,
-    GAP_2    = 12'd170,
-    GAP_3    = 12'd210,
-    GAP_4    = 12'd250,
-    GAP_5    = 12'd290,
-    GAP_6    = 12'd330,
-    GAP_7    = 12'd370;
+    GAP_INIT = 10'd240,
+    GAP_0    = 10'd170,
+    GAP_1    = 10'd200,
+    GAP_2    = 10'd240,
+    GAP_3    = 10'd280,
+    GAP_4    = 10'd320,
+    GAP_5    = 10'd350,
+    GAP_6    = 10'd200,
+    GAP_7    = 10'd280;
 
   always @(posedge Clk or posedge Reset)
     begin
