@@ -54,8 +54,6 @@ module vga_bitchange(
     end
 
     // ---- moving bar ROM -------------------------------------------------
-	// 256x30 ground strip at the bottom 30 rows of the active area.
-	// Scrolls left by incrementing scroll_x every ~10ms (≈95 px/s at 100MHz).
 	localparam BAR_TOP = 10'd450;  // vActive row where bar starts (480-30=450)
 
 	wire bar_in_y = (vActive >= BAR_TOP);
@@ -100,49 +98,43 @@ module vga_bitchange(
 
 
 	// ---- pipe ROM -------------------------------------------------------
-    localparam PIPE_W     = 78;
-	localparam PIPE_CAP_H = 36;
-	localparam GAP_H      = 160;
+    localparam PIPE_W       = 78;
+	localparam PIPE_ROW_OFF = 4;   // first non-transparent row in ROM
+	localparam PIPE_CAP_H   = 28;  // ROM content rows 4-31 (28 rows, no transparent padding)
+	localparam HALF_GAP_H   = 80;
+
+	// pipe_gap_y = vertical center of the gap
+	// gap top edge    = pipe_gap_y - HALF_GAP_H
+	// gap bottom edge = pipe_gap_y + HALF_GAP_H
 
 	wire pipe_in_x = (hCount >= pipe_x) && (hCount < pipe_x + PIPE_W);
 
-	wire top_cap  = pipe_in_x && (vCount >= pipe_gap_y - PIPE_CAP_H) && (vCount < pipe_gap_y);
-	wire top_body = pipe_in_x && (vCount <  pipe_gap_y - PIPE_CAP_H);
+	wire top_cap  = pipe_in_x && (vCount >= pipe_gap_y - HALF_GAP_H - PIPE_CAP_H) && (vCount < pipe_gap_y - HALF_GAP_H);
+	wire top_body = pipe_in_x && (vCount <  pipe_gap_y - HALF_GAP_H - PIPE_CAP_H);
 
-	wire bot_cap  = pipe_in_x && (vCount >= pipe_gap_y + GAP_H) && (vCount < pipe_gap_y + GAP_H + PIPE_CAP_H);
-	wire bot_body = pipe_in_x && (vCount >= pipe_gap_y + GAP_H + PIPE_CAP_H);
+	wire bot_cap  = pipe_in_x && (vCount >= pipe_gap_y + HALF_GAP_H) && (vCount < pipe_gap_y + HALF_GAP_H + PIPE_CAP_H);
+	wire bot_body = pipe_in_x && (vCount >= pipe_gap_y + HALF_GAP_H + PIPE_CAP_H);
 
 	wire pipe_active = top_cap || top_body || bot_cap || bot_body;
 
-	wire [5:0] pipe_col = pipe_active ? (hCount - pipe_x) : 6'd0;
+	wire [6:0] pipe_col = pipe_active ? (hCount - pipe_x) : 7'd0;
 
-	// caps
-	wire [5:0] pipe_row_cap_top =
-		vCount - (pipe_gap_y - PIPE_CAP_H);
+	// caps: offset by PIPE_ROW_OFF to skip the 4 transparent padding rows at ROM top
+	wire [5:0] pipe_row_cap_top = PIPE_ROW_OFF + (vCount - (pipe_gap_y - HALF_GAP_H - PIPE_CAP_H));
+	wire [5:0] pipe_row_cap_bot = PIPE_ROW_OFF + (PIPE_CAP_H - 1 - (vCount - (pipe_gap_y + HALF_GAP_H)));
 
-	wire [5:0] pipe_row_cap_bot =
-		PIPE_CAP_H - 1 - (vCount - (pipe_gap_y + GAP_H));
+	// body: tile the 28 content rows continuously, skipping transparent padding
+	wire [9:0] top_body_dist = pipe_gap_y - HALF_GAP_H - PIPE_CAP_H - 1 - vCount;
+	wire [9:0] bot_body_dist = vCount - (pipe_gap_y + HALF_GAP_H + PIPE_CAP_H);
 
-	// safe offsets
-	wire [9:0] top_offset =
-		pipe_gap_y - PIPE_CAP_H - vCount + PIPE_CAP_H * 4;
+	wire [5:0] pipe_row_top_body = PIPE_ROW_OFF + (top_body_dist % PIPE_CAP_H);
+	wire [5:0] pipe_row_bot_body = PIPE_ROW_OFF + (bot_body_dist % PIPE_CAP_H);
 
-	wire [9:0] bot_offset =
-		vCount - (pipe_gap_y + GAP_H + PIPE_CAP_H);
-
-	// body (continuous)
-	wire [5:0] pipe_row_top_body =
-		top_offset % PIPE_CAP_H;
-
-	wire [5:0] pipe_row_bot_body =
-		bot_offset % PIPE_CAP_H;
-
-	// select
 	wire [5:0] pipe_row =
 		top_cap  ? pipe_row_cap_top  :
 		bot_cap  ? pipe_row_cap_bot  :
 		top_body ? pipe_row_top_body :
-				pipe_row_bot_body;
+		           pipe_row_bot_body;
 
 	wire [11:0] pipe_color;
 	pipe_rom u_pipe(.clk(clk), .col(pipe_col), .row(pipe_row), .color_data(pipe_color));
@@ -154,6 +146,7 @@ module vga_bitchange(
 		pipe_on_d    <= pipe_active;
 		pipe_color_d <= pipe_color;
 	end
+
 
     always @(*) begin
 		if (!bright)

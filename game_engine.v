@@ -16,7 +16,7 @@ parameter SPEED = 1; // 2 x 100, roughly 200 pixels per second
 initial begin
     bird_y     = 10'd263;
     pipe_x     = 640;
-    pipe_gap_y = 160;
+    pipe_gap_y = 240; 
     scroll_x   = 0;
     best_score = 0;
 end
