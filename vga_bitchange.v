@@ -1,21 +1,21 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date:    12:15:38 12/14/2017 
-// Design Name: 
-// Module Name:    vgaBitChange 
-// Project Name: 
-// Target Devices: 
-// Tool versions: 
-// Description: 
+// Company:
+// Engineer:
 //
-// Dependencies: 
+// Create Date:    12:15:38 12/14/2017
+// Design Name:
+// Module Name:    vgaBitChange
+// Project Name:
+// Target Devices:
+// Tool versions:
+// Description:
 //
-// Revision: 
+// Dependencies:
+//
+// Revision:
 // Revision 0.01 - File Created
-// Additional Comments: 
+// Additional Comments:
 //
 // Date: 04/04/2020
 // Author: Yue (Julien) Niu
@@ -24,14 +24,14 @@
 module vga_bitchange(
 	input clk,
 	input bright,
-	input button,
+	// input button,
 	input [9:0] hCount, vCount,
     input [9:0] bird_y,
     input [7:0] scroll_x,
 	input [9:0] pipe_x,
 	input [9:0] pipe_gap_y,
 	output reg [11:0] rgb,
-	output reg [15:0] score
+	// output reg [15:0] score
    );
 
    	// ---- background ROM ------------------------------------------------
@@ -70,21 +70,21 @@ module vga_bitchange(
 		bar_on_d    <= bar_in_y;
 		bar_color_d <= bar_color;
 	end
-	
+
 	// ---- bird ROM -------------------------------------------------------
 	parameter BIRD_W = 43;
     parameter BIRD_H = 30;
     parameter BIRD_X = 443;
-    
-    wire bird_in_x = (hCount >= BIRD_X) && (hCount < BIRD_X + BIRD_W);
-    wire bird_in_y = (vCount >= bird_y) && (vCount < bird_y + BIRD_H);
+
+    wire bird_in_x = (hActive >= BIRD_X) && (hActive < BIRD_X + BIRD_W);
+    wire bird_in_y = (vActive >= bird_y) && (vActive < bird_y + BIRD_H);
 
 	wire [5:0] bird_col;
     wire [4:0] bird_row;
     wire [11:0] bird_color;
 
-    assign bird_col = bird_in_x ? (hCount - BIRD_X) : 6'd0;
-    assign bird_row = bird_in_y ? (vCount - bird_y) : 5'd0;
+    assign bird_col = bird_in_x ? (hActive - BIRD_X) : 6'd0;
+    assign bird_row = bird_in_y ? (vActive - bird_y) : 5'd0;
 
 	bird_rom u_bird (.clk(clk),.col(bird_col),.row(bird_row),.color_data(bird_color));
 
@@ -107,7 +107,7 @@ module vga_bitchange(
 	// gap top edge    = pipe_gap_y - HALF_GAP_H
 	// gap bottom edge = pipe_gap_y + HALF_GAP_H
 
-	wire pipe_in_x = (hCount >= pipe_x) && (hCount < pipe_x + PIPE_W);
+	wire pipe_in_x = (hActive >= pipe_x) && (hActive < pipe_x + PIPE_W);
 
 	wire top_cap  = pipe_in_x && (vCount >= pipe_gap_y - HALF_GAP_H - PIPE_CAP_H) && (vCount < pipe_gap_y - HALF_GAP_H);
 	wire top_body = pipe_in_x && (vCount <  pipe_gap_y - HALF_GAP_H - PIPE_CAP_H);

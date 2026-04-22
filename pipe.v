@@ -1,7 +1,7 @@
 module pipe (Clk, Reset, div_clk, pause, GapY);
 
   input Clk, Reset, div_clk, pause;
-  output reg [11:0] GapY;
+  output reg [9:0] GapY;
 
   integer i;
 
