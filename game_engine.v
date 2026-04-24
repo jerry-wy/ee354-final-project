@@ -4,6 +4,7 @@ module game_engine(
     input flap,
     input pause,
     input frame_tick,
+    input force_gameover,
 
     output [9:0] bird_y,
 
@@ -12,8 +13,13 @@ module game_engine(
 
     output reg [7:0] scroll_x,
     output reg [15:0] score,
-    output reg [15:0] best_score
+    output reg [15:0] best_score,
+    output reg [1:0]  game_state
 );
+
+  localparam Q_TITLE    = 2'd0;
+  localparam Q_PLAY  = 2'd1;
+  localparam Q_OVER = 2'd2;
 
   localparam PIPE_SPACING = 10'd160;
 
@@ -36,12 +42,23 @@ module game_engine(
 
   integer i;
 
+  // state machine
+  always @(posedge clk or posedge reset) begin
+      if (reset)
+          game_state <= Q_TITLE;
+      else case (game_state)
+          Q_TITLE:   if (flap)           game_state <= Q_PLAY;
+          Q_PLAY: if (force_gameover) game_state <= Q_OVER;
+          default: ;
+      endcase
+  end
+
   bird_physics bp(
       .Reset(reset),
       .Clk(clk),
       .div_clk(frame_tick),
       .flap(flap),
-      .pause(pause),
+      .pause((game_state != Q_PLAY) || pause),
       .Ypos(bird_y),
       .velocity(bird_velocity),
       .Qini(Qini),
@@ -79,28 +96,32 @@ module game_engine(
           best_score <= 0;
       end
 
-      else if (frame_tick && !pause) begin
-          if (base_x < P_SPEED) begin
-            base_x <= PIPE_SPACING;
-
-            for (i = 0; i < 4; i = i + 1)
-                pipe_gap_y_arr[i] <= pipe_gap_y_arr[i+1];
-
-            pipe_gap_y_arr[4] <= 80 + (lfsr % 320);
-
-            score <= score + 1;
-            if (score + 1 > best_score)
-                best_score <= score + 1;
-          end
-          
-          else begin
-              base_x <= base_x - P_SPEED;
+      else if (frame_tick) begin
+          // bar scrolls in START and PLAYING; freezes in GAMEOVER
+          if (game_state != Q_OVER) begin
+              if (scroll_x < SCROLL_WRAP)
+                  scroll_x <= scroll_x + SCROLL_SPEED;
+              else
+                  scroll_x <= 0;
           end
 
-          if (scroll_x < SCROLL_WRAP)
-              scroll_x <= scroll_x + SCROLL_SPEED;
-          else
-              scroll_x <= 0;
+          // pipes advance only while playing
+          if (game_state == Q_PLAY && !pause) begin
+              if (base_x < P_SPEED) begin
+                  base_x <= PIPE_SPACING;
+
+                  for (i = 0; i < 4; i = i + 1)
+                      pipe_gap_y_arr[i] <= pipe_gap_y_arr[i+1];
+
+                  pipe_gap_y_arr[4] <= 80 + (lfsr % 320);
+
+                  score <= score + 1;
+                  if (score + 1 > best_score)
+                      best_score <= score + 1;
+              end else begin
+                  base_x <= base_x - P_SPEED;
+              end
+          end
       end
   end
 

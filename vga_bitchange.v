@@ -24,19 +24,20 @@
 module vga_bitchange(
 	input clk,
 	input bright,
-	// input button,
 	input [9:0] hCount, vCount,
     input [9:0] bird_y,
     input [7:0] scroll_x,
+    input [1:0] game_state,
 	input [9:0] pipe_x0, pipe_x1, pipe_x2, pipe_x3, pipe_x4,
 	input [9:0] pipe_gap_y0, pipe_gap_y1, pipe_gap_y2, pipe_gap_y3, pipe_gap_y4,
 	output reg [11:0] rgb
-	// output reg [15:0] score
    );
 
+    localparam Q_TITLE    = 2'd0;
+    localparam Q_PLAY  = 2'd1;
+    localparam Q_OVER = 2'd2;
+
    	// ---- background ROM ------------------------------------------------
-	// Scale the 160x120 ROM to fill the full 640x480 active area.
-	// 640/160=4 and 480/120=4 — divide by 4 = right-shift 2 (no divider needed).
 	wire [9:0] hActive = (hCount >= 10'd144) ? (hCount - 10'd144) : 10'd0;
 	wire [9:0] vActive = (vCount >= 10'd35)  ? (vCount - 10'd35)  : 10'd0;
 	wire [7:0] bg_col;
@@ -174,13 +175,61 @@ module vga_bitchange(
 	always @(posedge clk)
 	    pipe_color_d <= pipe_color;
 
+	// ---- message (start screen) ROM -------------------------------------------
+	localparam [9:0] MSG_X = 10'd228;  
+	localparam [9:0] MSG_Y = 10'd107; 
+	localparam [9:0] MSG_W = 10'd184;
+	localparam [9:0] MSG_H = 10'd267;
+
+	wire        msg_in_x = (hActive >= MSG_X) && (hActive < MSG_X + MSG_W);
+	wire        msg_in_y = (vActive >= MSG_Y) && (vActive < MSG_Y + MSG_H);
+	wire        msg_hit  = msg_in_x && msg_in_y;
+	wire [8:0]  msg_row  = msg_hit ? (vActive - MSG_Y) : 9'd0;
+	wire [7:0]  msg_col  = msg_hit ? (hActive - MSG_X) : 8'd0;
+	wire [11:0] msg_color;
+
+	message_rom u_msg (.clk(clk), .row(msg_row), .col(msg_col), .color_data(msg_color));
+
+	reg        msg_hit_d;
+	reg [11:0] msg_color_d;
+	always @(posedge clk) begin
+		msg_hit_d   <= msg_hit;
+		msg_color_d <= msg_color;
+	end
+
+	// ---- gameover ROM ---------------------------------------------------------
+	localparam [9:0] GO_X = 10'd128;   
+	localparam [9:0] GO_Y = 10'd198; 
+	localparam [9:0] GO_W = 10'd384;
+	localparam [9:0] GO_H = 10'd84;
+
+	wire        go_in_x  = (hActive >= GO_X) && (hActive < GO_X + GO_W);
+	wire        go_in_y  = (vActive >= GO_Y) && (vActive < GO_Y + GO_H);
+	wire        go_hit   = go_in_x && go_in_y;
+	wire [5:0]  go_row   = go_hit ? ((vActive - GO_Y) >> 1) : 6'd0;
+	wire [7:0]  go_col   = go_hit ? ((hActive - GO_X) >> 1) : 8'd0;
+	wire [11:0] go_color;
+
+	gameover_rom u_go (.clk(clk), .row(go_row), .col(go_col), .color_data(go_color));
+
+	reg        go_hit_d;
+	reg [11:0] go_color_d;
+	always @(posedge clk) begin
+		go_hit_d   <= go_hit;
+		go_color_d <= go_color;
+	end
+
 	// ---------------- rgb Rendering ----------------
 	always @(*) begin
 		if (!bright)
 			rgb = 0;
+		else if (game_state == Q_TITLE && msg_hit_d && msg_color_d != 0)
+			rgb = msg_color_d;
+		else if (game_state == Q_OVER && go_hit_d && go_color_d != 0)
+			rgb = go_color_d;
 		else if (bird_on_d && bird_color_d != 0)
 			rgb = bird_color_d;
-		else if (pipe_hit && pipe_color_d != 0)
+		else if (pipe_hit && pipe_color_d != 0 && game_state != Q_TITLE)
 			rgb = pipe_color_d;
 		else if (bar_on_d)
 			rgb = bar_color_d;

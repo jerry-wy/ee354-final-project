@@ -15,6 +15,7 @@ module flappy_top(
 	input  ClkPort,
 	input  BtnC,
 	input  BtnU,
+	input  BtnD,
 
 	// VGA
 	output hSync, vSync,
@@ -39,9 +40,11 @@ module flappy_top(
 	wire [9:0] pipe_gap_y0, pipe_gap_y1, pipe_gap_y2, pipe_gap_y3, pipe_gap_y4;
 	wire [7:0] scroll_x;
 
-	wire btnU_dpb;
+	wire btnU_dpb, btnD_dpb;
 	wire flap;
 	wire frame_tick;
+	wire force_gameover;
+	wire [1:0] game_state;
 
 	// Calculate frame tick threshold for frame_tick pulse
 	// Using clock = 100MHz
@@ -65,13 +68,15 @@ module flappy_top(
 
 
 	display_controller dc(.clk(ClkPort), .hSync(hSync),.vSync(vSync), .bright(bright), .hCount(hc), .vCount(vc));
-    ee354_debouncer debouncer( .CLK(ClkPort), .RESET(BtnC), .PB(BtnU), .DPB(btnU_dpb), .SCEN(flap), .MCEN(), .CCEN());
+    ee354_debouncer debouncer_u( .CLK(ClkPort), .RESET(BtnC), .PB(BtnU), .DPB(btnU_dpb), .SCEN(flap),          .MCEN(), .CCEN());
+    ee354_debouncer debouncer_d( .CLK(ClkPort), .RESET(BtnC), .PB(BtnD), .DPB(btnD_dpb), .SCEN(force_gameover), .MCEN(), .CCEN());
 	game_engine ge(
 		.clk(ClkPort),
 		.reset(BtnC),
 		.flap(flap),
 		.pause(1'b0),
 		.frame_tick(frame_tick),
+		.force_gameover(force_gameover),
 		.bird_y(bird_y),
 
 		.pipe_x0(pipe_x0),
@@ -88,7 +93,8 @@ module flappy_top(
 
 		.scroll_x(scroll_x),
 		.score(score),
-		.best_score(best_score)
+		.best_score(best_score),
+		.game_state(game_state)
 	);
 
 	vga_bitchange vbc(
@@ -98,6 +104,7 @@ module flappy_top(
 		.vCount(vc),
 		.bird_y(bird_y),
 		.scroll_x(scroll_x),
+		.game_state(game_state),
 
 		.pipe_x0(pipe_x0),
 		.pipe_x1(pipe_x1),
