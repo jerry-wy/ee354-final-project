@@ -96,76 +96,62 @@ module vga_bitchange(
         bird_color_d <= bird_color;
     end
 
-	// ---- pipe ROM  -------------------------------
-	localparam PIPE_W       = 78;
-	localparam PIPE_ROW_OFF = 4;
-	localparam PIPE_CAP_H   = 28;
-	localparam PIPE_BODY_H  = 16;   // power of 2
-	localparam HALF_GAP_H   = 80;
+	// ---- pipe ROM -------------------------------------------------------
+	localparam [9:0] PIPE_W           = 10'd34; // visual display width (cap width)
+	localparam [6:0] PIPE_COL_OFS     = 7'd42;  // first non-transparent ROM column
+	localparam [9:0] PIPE_HALF_GAP    = 10'd80; // half the Y gap between upper/lower pipe
+	localparam [5:0] PIPE_CAP_BOT_ROW = 6'd31;  // gap-facing cap row (outermost)
+	localparam [5:0] PIPE_BODY_BOT_ROW= 6'd26;  // body row adjacent to cap (innermost)
+	localparam       PIPE_CAP_H       = 5;       // number of cap rows
+	localparam       PIPE_BODY_H      = 24;      // number of body rows (tiled)
 
-	// geometry
-	wire [9:0] pipe_left = pipe_x - PIPE_W;
+	// --- Horizontal ---
+	wire        pipe_in_x = (pipe_x >= PIPE_W) &&
+	                        (hActive >= pipe_x - PIPE_W) &&
+	                        (hActive <  pipe_x);
+	wire [9:0]  h_off     = hActive - (pipe_x - PIPE_W);   // 0..PIPE_W-1 when pipe_in_x
+	wire [6:0]  pipe_col  = pipe_in_x ? (PIPE_COL_OFS + h_off[5:0]) : 7'd0;
 
-	wire pipe_in_x = (pipe_x >= PIPE_W) ?
-		(hActive >= pipe_left && hActive < pipe_x) :
-		(hActive < pipe_x);
+	// --- Vertical ---
+	wire        pipe_upper_in_y = (vActive < pipe_gap_y - PIPE_HALF_GAP);
+	wire pipe_lower_in_y = (vActive >= pipe_gap_y + PIPE_HALF_GAP) && (vActive <  BAR_TOP);
+	wire        pipe_in_y       = pipe_upper_in_y || pipe_lower_in_y;
 
-	// regions
-	wire top_cap  = pipe_in_x && (vActive >= pipe_gap_y - HALF_GAP_H - PIPE_CAP_H) && (vActive < pipe_gap_y - HALF_GAP_H);
-	wire top_body = pipe_in_x && (vActive <  pipe_gap_y - HALF_GAP_H - PIPE_CAP_H);
+	// Distance from the gap boundary (same interpretation for both pipes).
+	wire [9:0]  dist_upper = (pipe_gap_y - PIPE_HALF_GAP - 10'd1) - vActive;
+	wire [9:0]  dist_lower = vActive - (pipe_gap_y + PIPE_HALF_GAP);
+	wire [9:0]  dist       = pipe_upper_in_y ? dist_upper : dist_lower;
 
-	wire bot_cap  = pipe_in_x && (vActive >= pipe_gap_y + HALF_GAP_H) && (vActive < pipe_gap_y + HALF_GAP_H + PIPE_CAP_H);
-	wire bot_body = pipe_in_x && (vActive >= pipe_gap_y + HALF_GAP_H + PIPE_CAP_H);
-
-	wire pipe_active = top_cap || top_body || bot_cap || bot_body;
-
-	// address
-	wire [6:0] pipe_col_raw = hActive - pipe_left;
-
-	wire [5:0] pipe_row_cap_top = PIPE_ROW_OFF + (vActive - (pipe_gap_y - HALF_GAP_H - PIPE_CAP_H));
-	wire [5:0] pipe_row_cap_bot = PIPE_ROW_OFF + (PIPE_CAP_H - 1 - (vActive - (pipe_gap_y + HALF_GAP_H)));
-
-	wire [9:0] top_body_dist = pipe_gap_y - HALF_GAP_H - PIPE_CAP_H - 1 - vActive;
-	wire [9:0] bot_body_dist = vActive - (pipe_gap_y + HALF_GAP_H + PIPE_CAP_H);
-
-	wire [5:0] pipe_row_top_body = PIPE_ROW_OFF + top_body_dist[3:0];
-	wire [5:0] pipe_row_bot_body = PIPE_ROW_OFF + bot_body_dist[3:0];
-
-	wire [5:0] pipe_row_raw =
-		top_cap  ? pipe_row_cap_top  :
-		bot_cap  ? pipe_row_cap_bot  :
-		top_body ? pipe_row_top_body :
-				pipe_row_bot_body;
-
-	// pipeline
-	reg pipe_active_d;
-	reg [6:0] pipe_col_d;
-	reg [5:0] pipe_row_d;
-
-	always @(posedge clk) begin
-		pipe_active_d <= pipe_active;
-		pipe_col_d    <= pipe_col_raw;
-		pipe_row_d    <= pipe_row_raw;
-	end
+	// --- ROM row ---
+	wire        in_cap    = (dist < PIPE_CAP_H);
+	wire [9:0]  body_off  = in_cap ? 10'd0 : (dist - PIPE_CAP_H); // safe unsigned
+	wire [5:0]  body_idx  = body_off % PIPE_BODY_H;                // 0-23
+	wire [5:0]  cap_row   = PIPE_CAP_BOT_ROW - {3'b0, dist[2:0]};  // 31..27
+	wire [5:0]  body_row  = PIPE_BODY_BOT_ROW - body_idx;          // 26..3
+	wire [5:0]  pipe_row  = (pipe_in_x && pipe_in_y)
+	                            ? (in_cap ? cap_row : body_row)
+	                            : 6'd0;
 
 	wire [11:0] pipe_color;
+	pipe_rom u_pipe (
+	    .clk        (clk),
+	    .row        (pipe_row),
+	    .col        (pipe_col),
+	    .color_data (pipe_color)
+	);
 
-	pipe_rom u_pipe(.clk(clk),.col(pipe_col_d), .row(pipe_row_d),.color_data(pipe_color));
-
-	reg pipe_on_d;
 	reg [11:0] pipe_color_d;
-
-	always @(posedge clk) begin
-		pipe_on_d    <= pipe_active_d;
-		pipe_color_d <= pipe_color;
-	end
+	always @(posedge clk)
+	    pipe_color_d <= pipe_color;
 
 	// ---------------- Rendering ----------------
     always @(*) begin
 		if (!bright)
 			rgb = 0;
-		else if (bird_color_d != 0)
+		else if (bird_on_d && bird_color_d != 0)
 			rgb = bird_color_d;
+		else if (bird_on_d)
+			rgb = bg_color_d;
 		else if (pipe_color_d != 0)
 			rgb = pipe_color_d;
 		else if (bar_on_d)
