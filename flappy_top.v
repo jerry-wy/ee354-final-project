@@ -35,8 +35,8 @@ module flappy_top(
 	wire [6:0] ssdOut;
 	wire [7:0] anode;
 	wire [11:0] rgb;
-	wire [9:0] pipe_x;
-	wire [9:0] pipe_gap_y;
+	wire [9:0] pipe_x0, pipe_x1, pipe_x2, pipe_x3, pipe_x4;
+	wire [9:0] pipe_gap_y0, pipe_gap_y1, pipe_gap_y2, pipe_gap_y3, pipe_gap_y4;
 	wire [7:0] scroll_x;
 
 	wire btnU_dpb;
@@ -50,8 +50,8 @@ module flappy_top(
 	// log_2(1 666 666 + 1) = 20.668 ~~ 21 bits required
 
 	reg[20:0] tick_count;
+	localparam TICK_MAX = 21'd1666666;
 	assign frame_tick = (tick_count == TICK_MAX);
-	localparam TICK_MAX = 20'd1666666;
 
 	always @(posedge ClkPort or posedge BtnC)
 	begin
@@ -66,9 +66,54 @@ module flappy_top(
 
 	display_controller dc(.clk(ClkPort), .hSync(hSync),.vSync(vSync), .bright(bright), .hCount(hc), .vCount(vc));
     ee354_debouncer debouncer( .CLK(ClkPort), .RESET(BtnC), .PB(BtnU), .DPB(btnU_dpb), .SCEN(flap), .MCEN(), .CCEN());
-    game_engine ge(.clk(ClkPort), .reset(BtnC), .flap(flap), .pause(1'b0), .frame_tick(frame_tick), .bird_y(bird_y), .pipe_x(pipe_x), .pipe_gap_y(pipe_gap_y), .scroll_x(scroll_x), .score(score), .best_score(best_score));
-    vga_bitchange vbc(.clk(ClkPort), .bright(bright), .hCount(hc), .vCount(vc), .bird_y(bird_y), .scroll_x(scroll_x), .pipe_x(pipe_x), .pipe_gap_y(pipe_gap_y), .rgb(rgb));
-    counter cnt(.clk(ClkPort), .score(score), .best_score(best_score), .anode(anode), .ssdOut(ssdOut));
+	game_engine ge(
+		.clk(ClkPort),
+		.reset(BtnC),
+		.flap(flap),
+		.pause(1'b0),
+		.frame_tick(frame_tick),
+		.bird_y(bird_y),
+
+		.pipe_x0(pipe_x0),
+		.pipe_x1(pipe_x1),
+		.pipe_x2(pipe_x2),
+		.pipe_x3(pipe_x3),
+		.pipe_x4(pipe_x4),
+
+		.pipe_gap_y0(pipe_gap_y0),
+		.pipe_gap_y1(pipe_gap_y1),
+		.pipe_gap_y2(pipe_gap_y2),
+		.pipe_gap_y3(pipe_gap_y3),
+		.pipe_gap_y4(pipe_gap_y4),
+
+		.scroll_x(scroll_x),
+		.score(score),
+		.best_score(best_score)
+	);
+
+	vga_bitchange vbc(
+		.clk(ClkPort),
+		.bright(bright),
+		.hCount(hc),
+		.vCount(vc),
+		.bird_y(bird_y),
+		.scroll_x(scroll_x),
+
+		.pipe_x0(pipe_x0),
+		.pipe_x1(pipe_x1),
+		.pipe_x2(pipe_x2),
+		.pipe_x3(pipe_x3),
+		.pipe_x4(pipe_x4),
+
+		.pipe_gap_y0(pipe_gap_y0),
+		.pipe_gap_y1(pipe_gap_y1),
+		.pipe_gap_y2(pipe_gap_y2),
+		.pipe_gap_y3(pipe_gap_y3),
+		.pipe_gap_y4(pipe_gap_y4),
+
+		.rgb(rgb)
+	);
+	counter cnt(.clk(ClkPort), .score(score), .best_score(best_score), .anode(anode), .ssdOut(ssdOut));
 
 	assign vgaR = rgb[11:8];
 	assign vgaG = rgb[7:4];

@@ -1,70 +1,114 @@
 module game_engine(
     input clk,
     input reset,
-    input flap, // user pressing the fap button --> SEND TO BP FOR BIRD JUMP
-    input pause, // whether or not the game is paused
+    input flap,
+    input pause,
     input frame_tick,
 
     output [9:0] bird_y,
-    output reg [9:0] pipe_x, // right edge of the pipe in active-area coords
-    output [9:0] pipe_gap_y, // location of the pipe gap (center)
-    output reg [7:0] scroll_x, //
+
+    output [9:0] pipe_x0, pipe_x1, pipe_x2, pipe_x3, pipe_x4,
+    output [9:0] pipe_gap_y0, pipe_gap_y1, pipe_gap_y2, pipe_gap_y3, pipe_gap_y4,
+
+    output reg [7:0] scroll_x,
     output reg [15:0] score,
     output reg [15:0] best_score
 );
 
+  localparam PIPE_SPACING = 10'd160;
+
+  localparam PX_INIT      = 10'd718;
+  localparam P_SPEED      = 10'd1;
+
+  localparam SCROLL_INIT  = 8'd0;
+  localparam SCROLL_SPEED = 8'd1;
+  localparam SCROLL_WRAP  = 8'd255;
+
   wire [9:0] bird_velocity;
   wire Qini, Qflap, Qrise, Qfall;
 
-  reg pipe_respawn;// flag to signal new incoming pipe
+  reg [9:0] base_x;
+  reg [9:0] pipe_x_arr [0:4];
+  reg [9:0] pipe_gap_y_arr [0:4];
 
-  localparam
-    PX_INIT      = 10'd718,
-    P_SPEED      = 10'd2,
-    P_GAP_X      = 10'd120,
-    SCROLL_INIT  = 8'd0,
-    SCROLL_SPEED = 8'd2,
-    SCROLL_WRAP  = 8'd255;
+  reg [9:0] lfsr;
 
-  bird_physics bp(.Reset(reset), .Clk(clk), .div_clk(frame_tick), .flap(flap), .pause(pause), .Ypos(bird_y), .velocity(bird_velocity), .Qini(Qini), .Qflap(Qflap),.Qrise(Qrise), .Qfall(Qfall));
-  pipe p(.Clk(clk), .Reset(reset), .div_clk(pipe_respawn), .pause(pause), .pipe_gap_y(pipe_gap_y));
+  integer i;
+
+  bird_physics bp(
+      .Reset(reset),
+      .Clk(clk),
+      .div_clk(frame_tick),
+      .flap(flap),
+      .pause(pause),
+      .Ypos(bird_y),
+      .velocity(bird_velocity),
+      .Qini(Qini),
+      .Qflap(Qflap),
+      .Qrise(Qrise),
+      .Qfall(Qfall)
+  );
+
+  always @(*) begin
+      for (i = 0; i < 5; i = i + 1)
+          pipe_x_arr[i] = base_x + i * PIPE_SPACING;
+  end
+
+
+    always @(posedge clk or posedge reset) begin
+        if (reset)
+            lfsr <= 10'b1010010110;   // any non-zero seed
+        else
+            lfsr <= {lfsr[8:0], lfsr[9] ^ lfsr[6]};  // taps
+    end
 
   always @(posedge clk or posedge reset) begin
-    if (reset)
-    begin
-        pipe_x <= PX_INIT;
-        scroll_x <= SCROLL_INIT;
-        score <= 0;
-        best_score <= 0;
-        pipe_respawn <= 0;
-    end
+      if (reset) begin
+          base_x <= PX_INIT;
 
-    else
-    begin
-        pipe_respawn <= 0;
-        if (frame_tick && !pause)
-        begin
-            // right edge reaches 0 → pipe fully off left side
-            if (pipe_x < P_SPEED)
-            begin
-                pipe_x <= PX_INIT;
-                pipe_respawn <= 1;
-                score <= score + 1;
+          for (i = 0; i < 5; i = i + 1)
+              pipe_gap_y_arr[i] <= 10'd200 + i * 30;
 
-                if (score + 1 > best_score)
-                    best_score <= score + 1;
-            end
-            else
-                pipe_x <= pipe_x - P_SPEED;
+          scroll_x <= SCROLL_INIT;
+          score <= 0;
+          best_score <= 0;
+      end
 
-            if (scroll_x < SCROLL_WRAP)
-                scroll_x <= scroll_x + SCROLL_SPEED;
-            else
-                scroll_x <= 0;
+      else if (frame_tick && !pause) begin
+          if (base_x <= 10'd34) begin
+            base_x <= PX_INIT;
 
-        end
+            for (i = 0; i < 4; i = i + 1)
+                pipe_gap_y_arr[i] <= pipe_gap_y_arr[i+1];
 
-    end
+            pipe_gap_y_arr[4] <= 80 + (lfsr % 320);
+
+            score <= score + 1;
+            if (score + 1 > best_score)
+                best_score <= score + 1;
+          end
+          
+          else begin
+              base_x <= base_x - P_SPEED;
+          end
+
+          if (scroll_x < SCROLL_WRAP)
+              scroll_x <= scroll_x + SCROLL_SPEED;
+          else
+              scroll_x <= 0;
+      end
   end
+
+  assign pipe_x0 = pipe_x_arr[0];
+  assign pipe_x1 = pipe_x_arr[1];
+  assign pipe_x2 = pipe_x_arr[2];
+  assign pipe_x3 = pipe_x_arr[3];
+  assign pipe_x4 = pipe_x_arr[4];
+
+  assign pipe_gap_y0 = pipe_gap_y_arr[0];
+  assign pipe_gap_y1 = pipe_gap_y_arr[1];
+  assign pipe_gap_y2 = pipe_gap_y_arr[2];
+  assign pipe_gap_y3 = pipe_gap_y_arr[3];
+  assign pipe_gap_y4 = pipe_gap_y_arr[4];
 
 endmodule
