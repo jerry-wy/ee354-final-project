@@ -137,7 +137,7 @@ module vga_bitchange(
 			if (!pipe_hit) begin
 
 				// ---- horizontal check ----
-				if ((pipe_x[i] >= PIPE_W) && (hActive >= pipe_x[i] - PIPE_W) && (hActive <  pipe_x[i])) begin
+				if ((pipe_x[i] > 0) && (hActive < pipe_x[i]) && (hActive + PIPE_W >= pipe_x[i])) begin
 
 					// ---- vertical check ----
 					if ((vActive <  pipe_gap_y[i] - PIPE_HALF_GAP) || (vActive >= pipe_gap_y[i] + PIPE_HALF_GAP && vActive < BAR_TOP)) begin

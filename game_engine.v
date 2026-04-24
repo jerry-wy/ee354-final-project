@@ -27,9 +27,10 @@ module game_engine(
   wire [9:0] bird_velocity;
   wire Qini, Qflap, Qrise, Qfall;
 
-  reg [9:0] base_x;
-  reg [9:0] pipe_x_arr [0:4];
-  reg [9:0] pipe_gap_y_arr [0:4];
+  reg [9:0]  base_x;
+  reg [9:0]  pipe_x_arr  [0:4];
+  reg [10:0] pipe_x_wide [0:4];   // 11-bit to detect overflow before truncation
+  reg [9:0]  pipe_gap_y_arr [0:4];
 
   reg [9:0] lfsr;
 
@@ -50,8 +51,12 @@ module game_engine(
   );
 
   always @(*) begin
-      for (i = 0; i < 5; i = i + 1)
-          pipe_x_arr[i] = base_x + i * PIPE_SPACING;
+      for (i = 0; i < 5; i = i + 1) begin
+          pipe_x_wide[i] = base_x + i * PIPE_SPACING;
+          // bit 10 set means value > 1023 — pipe is far off-screen right;
+          // clamp to 800 so the 10-bit truncation cannot wrap onto the display.
+          pipe_x_arr[i] = pipe_x_wide[i][10] ? 10'd800 : pipe_x_wide[i][9:0];
+      end
   end
 
 
@@ -75,8 +80,8 @@ module game_engine(
       end
 
       else if (frame_tick && !pause) begin
-          if (base_x <= 10'd34) begin
-            base_x <= PX_INIT;
+          if (base_x < P_SPEED) begin
+            base_x <= PIPE_SPACING;
 
             for (i = 0; i < 4; i = i + 1)
                 pipe_gap_y_arr[i] <= pipe_gap_y_arr[i+1];
