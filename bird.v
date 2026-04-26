@@ -16,8 +16,9 @@ localparam
 localparam
     YINIT = 10'd200,
     VINIT = 10'd0,
-    JUMP_SPEED = 10'd6,
-    GRAVITY = 10'd1;
+    JUMP_SPEED = 10'd10,
+    GRAVITY = 10'd1,
+    MAX_FALL = 10'd8;
 
 assign {Qfall, Qrise, Qflap, Qini} = state;
 
@@ -41,13 +42,17 @@ begin
                     state <= INI;
 
                 Ypos <= YINIT;
-                velocity <= VINIT;
+                velocity <= GRAVITY;
             end
 
             FLAP:
             begin
                 state <= RISE;
-                Ypos <= Ypos - JUMP_SPEED;
+
+                if (Ypos > JUMP_SPEED)
+                    Ypos <= Ypos - JUMP_SPEED;
+                else
+                    Ypos <= 10'd0;
                 velocity <= JUMP_SPEED;
             end
 
@@ -62,13 +67,19 @@ begin
 
                 if (velocity > GRAVITY && !flap)
                 begin
-                    Ypos <= Ypos - velocity;
+                    if (Ypos > velocity)
+                        Ypos <= Ypos - velocity;
+                    else
+                        Ypos <= 10'd0;
                     velocity <= velocity - GRAVITY;
                 end
                 else if (velocity <= GRAVITY && !flap)
                 begin
-                    Ypos <= Ypos - velocity;
-                    velocity <= VINIT;
+                    if (Ypos > velocity)
+                        Ypos <= Ypos - velocity;
+                    else
+                        Ypos <= 10'd0;
+                    velocity <= GRAVITY;
                 end
             end
 
@@ -82,7 +93,10 @@ begin
                 if (!flap)
                 begin
                     Ypos <= Ypos + velocity;
-                    velocity <= velocity + GRAVITY;
+                    if (velocity < MAX_FALL)
+                        velocity <= velocity + GRAVITY;
+                    else
+                        velocity <= MAX_FALL;
                 end
             end
 
