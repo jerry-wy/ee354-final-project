@@ -16,6 +16,7 @@ module flappy_top(
 	input  BtnC,
 	input  BtnU,
 	input  BtnD,
+	input BtnR,
 
 	// VGA
 	output hSync, vSync,
@@ -42,6 +43,7 @@ module flappy_top(
 
 	wire btnU_dpb, btnD_dpb;
 	wire flap;
+	wire ACK;
 	wire frame_tick;
 	wire force_gameover;
 	wire [1:0] game_state;
@@ -70,10 +72,12 @@ module flappy_top(
 	display_controller dc(.clk(ClkPort), .hSync(hSync),.vSync(vSync), .bright(bright), .hCount(hc), .vCount(vc));
     ee354_debouncer debouncer_u( .CLK(ClkPort), .RESET(BtnC), .PB(BtnU), .DPB(btnU_dpb), .SCEN(flap),          .MCEN(), .CCEN());
     ee354_debouncer debouncer_d( .CLK(ClkPort), .RESET(BtnC), .PB(BtnD), .DPB(btnD_dpb), .SCEN(force_gameover), .MCEN(), .CCEN());
+    ee354_debouncer debouncer_b( .CLK(ClkPort), .RESET(BtnC), .PB(BtnR), .DPB(btnD_dpb), .SCEN(ACK), .MCEN(), .CCEN());
 	game_engine ge(
 		.clk(ClkPort),
 		.reset(BtnC),
 		.flap(flap),
+		.ACK(ACK),
 		.pause(1'b0),
 		.frame_tick(frame_tick),
 		.force_gameover(force_gameover),

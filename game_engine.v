@@ -2,6 +2,7 @@ module game_engine(
     input clk,
     input reset,
     input flap,
+    input ACK,
     input pause,
     input frame_tick,
     input force_gameover,
@@ -21,26 +22,53 @@ module game_engine(
   localparam Q_PLAY  = 2'd1;
   localparam Q_OVER = 2'd2;
 
-  localparam PIPE_SPACING = 10'd160;
+  localparam PIPE_SPACING = 10'd150;
 
   localparam PX_INIT      = 10'd718;
-  localparam P_SPEED      = 10'd1;
+  localparam P_SPEED      = 10'd2;
 
   localparam SCROLL_INIT  = 8'd0;
-  localparam SCROLL_SPEED = 8'd1;
+  localparam SCROLL_SPEED = 8'd2;
   localparam SCROLL_WRAP  = 8'd255;
 
+  localparam
+    BIRD_X = 11'd205,
+    BIRD_WIDTH = 11'd60,
+    BIRD_HEIGHT = 11'd22,
+    PIPE_WIDTH = 11'd34,
+    PIPE_HGAP = 11'd70;
+
   wire [9:0] bird_velocity;
+  wire bird_flap;
+  reg flap_pending;
   wire Qini, Qflap, Qrise, Qfall;
+  wire collision;
+  wire round_reset;
+  assign round_reset = (game_state == Q_OVER) && ACK;
+
+  wire groud_col;
+  assign ground_col = bird_y >= 10'd420;
+
+  wire pipe_col;
+
+
+  assign collision = ground_col || pipe_col;
 
   reg [9:0]  base_x;
   reg [9:0]  pipe_x_arr  [0:4];
   reg [10:0] pipe_x_wide [0:4];   // 11-bit to detect overflow before truncation
   reg [9:0]  pipe_gap_y_arr [0:4];
 
+
   reg [9:0] lfsr;
 
+
+  reg pipe_col_reg;
+  reg[10:0] birdl, birdr, birdtop, birdbottom;
+  reg[10:0] pipel, piper, gaptop, gapbottom;
+
   integer i;
+  integer j;
 
   // state machine
   always @(posedge clk or posedge reset) begin
@@ -48,16 +76,40 @@ module game_engine(
           game_state <= Q_TITLE;
       else case (game_state)
           Q_TITLE:   if (flap)           game_state <= Q_PLAY;
-          Q_PLAY: if (force_gameover) game_state <= Q_OVER;
+          Q_PLAY: if (force_gameover || collision) game_state <= Q_OVER;
+          Q_OVER:
+            begin
+                game_state <= Q_OVER;
+                if (ACK)
+                    game_state <= Q_TITLE;
+            end
           default: ;
       endcase
   end
 
+  always @(posedge clk or posedge reset) begin
+    if (reset)
+        flap_pending <= 0;
+
+    else if (game_state == Q_OVER)
+        flap_pending <= 0;
+
+    else if (flap)
+        flap_pending <= 1;
+
+    else if (frame_tick && game_state == Q_PLAY)
+        flap_pending <= 0;
+
+ end
+
+ assign bird_flap = flap_pending; // comment for dif bitstream
+
   bird_physics bp(
       .Reset(reset),
+      .round_reset(round_reset),
       .Clk(clk),
       .div_clk(frame_tick),
-      .flap(flap),
+      .flap(bird_flap),
       .pause((game_state != Q_PLAY) || pause),
       .Ypos(bird_y),
       .velocity(bird_velocity),
@@ -85,15 +137,16 @@ module game_engine(
     end
 
   always @(posedge clk or posedge reset) begin
-      if (reset) begin
+      if (reset || round_reset) begin
           base_x <= PX_INIT;
 
           for (i = 0; i < 5; i = i + 1)
-              pipe_gap_y_arr[i] <= 10'd200 + i * 30;
+              pipe_gap_y_arr[i] <= 10'd200 + i * 20;
 
           scroll_x <= SCROLL_INIT;
           score <= 0;
-          best_score <= 0;
+          if (reset)
+            best_score <= 0;
       end
 
       else if (frame_tick) begin
@@ -124,6 +177,42 @@ module game_engine(
           end
       end
   end
+
+  always @(*) begin
+    pipe_col_reg = 0;
+    birdl = BIRD_X;
+    birdr = BIRD_X + BIRD_WIDTH - 1;
+    birdtop = {1'b0, bird_y};
+    birdbottom = {1'b0, bird_y} + BIRD_HEIGHT - 11'd1;
+    for (j = 0; j < 5; j = j + 1) begin
+          if ({1'b0, pipe_x_arr[j]}> PIPE_WIDTH)
+            pipel  = {1'b0, pipe_x_arr[j]};
+          else
+            pipel = 0;
+
+          piper = {1'b0, pipe_x_arr[j]};
+
+          gaptop    = {1'b0, pipe_gap_y_arr[j]} - PIPE_HGAP;
+          gapbottom = {1'b0, pipe_gap_y_arr[j]} + PIPE_HGAP;
+
+          if (
+              // horizontal overlap
+              (birdr >= pipel) &&
+              (birdl  <= piper) &&
+
+              // not inside the safe vertical gap
+              (
+                  (birdtop    < gaptop) ||
+                  (birdbottom > gapbottom)
+              )
+          ) begin
+              pipe_col_reg = 1'b1;
+          end
+      end
+  end
+
+  assign pipe_col = pipe_col_reg;
+
 
   assign pipe_x0 = pipe_x_arr[0];
   assign pipe_x1 = pipe_x_arr[1];
