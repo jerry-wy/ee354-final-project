@@ -160,6 +160,17 @@ module game_engine(
 
           // pipes advance only while playing
           if (game_state == Q_PLAY && !pause) begin
+
+              if (((pipe_x_arr[0] > 10'd200) && (pipe_x_arr[0] <= 10'd200 + P_SPEED)) ||
+                 ((pipe_x_arr[1] > 10'd200) && (pipe_x_arr[1] <= 10'd200 + P_SPEED)) ||
+                 ((pipe_x_arr[2] > 10'd200) && (pipe_x_arr[2] <= 10'd200 + P_SPEED)) ||
+                 ((pipe_x_arr[3] > 10'd200) && (pipe_x_arr[3] <= 10'd200 + P_SPEED)))
+                 begin
+
+                   score <= score + 1;
+                   if (score + 1 > best_score)
+                     best_score <= score + 1;
+                  end
               if (base_x < P_SPEED) begin
                   base_x <= PIPE_SPACING;
 
@@ -168,9 +179,6 @@ module game_engine(
 
                   pipe_gap_y_arr[4] <= 80 + (lfsr % 320);
 
-                  score <= score + 1;
-                  if (score + 1 > best_score)
-                      best_score <= score + 1;
               end else begin
                   base_x <= base_x - P_SPEED;
               end
