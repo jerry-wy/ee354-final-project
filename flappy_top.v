@@ -12,11 +12,11 @@
 // Description: Port from NEXYS4 to A7
 //////////////////////////////////////////////////////////////////////////////////
 module flappy_top(
-	input  ClkPort,
-	input  BtnC,
-	input  BtnU,
-	input  BtnD,
-	input BtnR,
+	input ClkPort, // 100 MHz board clock
+	input BtnC, // reset button
+	input BtnU, // flap
+	input BtnD, // (testing only) force game over
+	input BtnR, // ACK button at gameover
 
 	// VGA
 	output hSync, vSync,
@@ -37,16 +37,21 @@ module flappy_top(
 	wire [6:0] ssdOut;
 	wire [7:0] anode;
 	wire [11:0] rgb;
-	wire [9:0] pipe_x0, pipe_x1, pipe_x2, pipe_x3, pipe_x4;
-	wire [9:0] pipe_gap_y0, pipe_gap_y1, pipe_gap_y2, pipe_gap_y3, pipe_gap_y4;
+	wire [9:0] pipe_x0, pipe_x1, pipe_x2, pipe_x3, pipe_x4; // x coordinate of the pipes on screen
+	wire [9:0] pipe_gap_y0, pipe_gap_y1, pipe_gap_y2, pipe_gap_y3, pipe_gap_y4; // y coordinate of the center of the gap of pipes
 	wire [7:0] scroll_x;
 
-	wire btnU_dpb, btnD_dpb;
-	wire flap;
-	wire ACK;
+	wire btnU_dpb, btnD_dpb, btnR_dpb;
+	wire flap; // flap command controlled by SCEN pulse for btnU
+	wire ACK; // ACK controlled by SCEN pulse for btnR
 	wire frame_tick;
 	wire force_gameover;
 	wire [1:0] game_state;
+	/*
+		Q_TITLE = 00
+		Q_PLAY = 01
+		Q_OVER = 10
+	*/
 
 	// Calculate frame tick threshold for frame_tick pulse
 	// Using clock = 100MHz
@@ -54,15 +59,15 @@ module flappy_top(
 	// = 1 666 666.6667 ~~ 1 666 666
 	// log_2(1 666 666 + 1) = 20.668 ~~ 21 bits required
 
-	reg[20:0] tick_count;
-	localparam TICK_MAX = 21'd1666666;
-	assign frame_tick = (tick_count == TICK_MAX);
+	reg [20:0] tick_count;
+	localparam FRAME_TRESHOLD = 21'd1666666;
+	assign frame_tick = (tick_count == FRAME_TRESHOLD);
 
 	always @(posedge ClkPort or posedge BtnC)
 	begin
 		if (BtnC) // reset condition
 			tick_count <= 0;
-		else if (tick_count == TICK_MAX) // threshold for pulse
+		else if (tick_count == FRAME_TRESHOLD) // threshold for pulse
 			tick_count <= 0;
 		else // increment
 			tick_count <= tick_count + 1;
@@ -70,9 +75,9 @@ module flappy_top(
 
 
 	display_controller dc(.clk(ClkPort), .hSync(hSync),.vSync(vSync), .bright(bright), .hCount(hc), .vCount(vc));
-    ee354_debouncer debouncer_u( .CLK(ClkPort), .RESET(BtnC), .PB(BtnU), .DPB(btnU_dpb), .SCEN(flap),          .MCEN(), .CCEN());
-    ee354_debouncer debouncer_d( .CLK(ClkPort), .RESET(BtnC), .PB(BtnD), .DPB(btnD_dpb), .SCEN(force_gameover), .MCEN(), .CCEN());
-    ee354_debouncer debouncer_b( .CLK(ClkPort), .RESET(BtnC), .PB(BtnR), .DPB(btnD_dpb), .SCEN(ACK), .MCEN(), .CCEN());
+    ee354_debouncer debouncer_u( .CLK(ClkPort), .RESET(BtnC), .PB(BtnU), .DPB(btnU_dpb), .SCEN(flap), .MCEN(), .CCEN()); // flap debounce
+    ee354_debouncer debouncer_d( .CLK(ClkPort), .RESET(BtnC), .PB(BtnD), .DPB(btnD_dpb), .SCEN(force_gameover), .MCEN(), .CCEN()); // force gameover (testing)
+    ee354_debouncer debouncer_b( .CLK(ClkPort), .RESET(BtnC), .PB(BtnR), .DPB(btnR_dpb), .SCEN(ACK), .MCEN(), .CCEN()); // ACK debounce
 	game_engine ge(
 		.clk(ClkPort),
 		.reset(BtnC),

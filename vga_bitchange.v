@@ -43,7 +43,7 @@ module vga_bitchange(
 	wire [7:0] bg_col;
 	wire [6:0] bg_row;
 	wire [11:0] bg_color;
-	
+
 	assign bg_col = hActive[9:2];  // hActive / 4
 	assign bg_row = vActive[9:2];  // vActive / 4
 
@@ -116,14 +116,14 @@ module vga_bitchange(
 
 	localparam [9:0] PIPE_W           = 10'd34;
 	localparam [6:0] PIPE_COL_OFS     = 7'd42;
-	localparam [9:0] PIPE_HALF_GAP    = 10'd80;
+	localparam [9:0] PIPE_HALF_GAP    = 10'd70;
 	localparam [5:0] PIPE_CAP_BOT_ROW = 6'd31;
 	localparam [5:0] PIPE_BODY_BOT_ROW= 6'd26;
 	localparam       PIPE_CAP_H       = 5;
 	localparam       PIPE_BODY_H      = 24;
 
 	integer i;
-	
+
 	reg        pipe_hit;
 	reg [6:0]  pipe_col_mux;
 	reg [5:0]  pipe_row_mux;
@@ -176,8 +176,8 @@ module vga_bitchange(
 	    pipe_color_d <= pipe_color;
 
 	// ---- message (start screen) ROM -------------------------------------------
-	localparam [9:0] MSG_X = 10'd228;  
-	localparam [9:0] MSG_Y = 10'd107; 
+	localparam [9:0] MSG_X = 10'd228;
+	localparam [9:0] MSG_Y = 10'd107;
 	localparam [9:0] MSG_W = 10'd184;
 	localparam [9:0] MSG_H = 10'd267;
 
@@ -198,8 +198,8 @@ module vga_bitchange(
 	end
 
 	// ---- gameover ROM ---------------------------------------------------------
-	localparam [9:0] GO_X = 10'd128;   
-	localparam [9:0] GO_Y = 10'd198; 
+	localparam [9:0] GO_X = 10'd128;
+	localparam [9:0] GO_Y = 10'd198;
 	localparam [9:0] GO_W = 10'd384;
 	localparam [9:0] GO_H = 10'd84;
 
