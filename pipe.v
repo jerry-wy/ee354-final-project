@@ -1,14 +1,13 @@
+// originally meant to handle pipe logic, done so in game_engine.v, so unused.
+
 module pipe (
     input  wire        Clk,
     input  wire        Reset,
-    input  wire        div_clk,  // one pulse per pipe-advance event
+    input  wire        div_clk,
     input  wire        pause,
     output reg  [9:0]  pipe_gap_y
 );
 
-  // Gap center Y for each stage.
-  // Valid range: PIPE_HALF_GAP (80) away from screen edge [0, 479].
-  // Minimum: 0 + 80 = 80.  Maximum: 479 - 80 = 399.
   localparam [9:0]
     GAP_INIT = 10'd240,
     GAP_0    = 10'd170,
@@ -20,7 +19,7 @@ module pipe (
     GAP_6    = 10'd200,
     GAP_7    = 10'd280;
 
-  localparam N_GAPS = 3'd7; // last valid index (8 entries: 0-7)
+  localparam N_GAPS = 3'd7;
 
   reg [2:0] idx;
 
